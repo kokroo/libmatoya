@@ -691,9 +691,10 @@ typedef struct {
 
 /// @brief File drop event.
 typedef struct {
-	const char *name; ///< The name of file.
-	const void *buf;  ///< A buffer containing the contents of the file.
-	size_t size;      ///< The size of `data`.
+	size_t count;     ///< Number of files.
+	char **name; ///< The names of each file. Caller must call MTY_Free when done.
+	void **buf;  ///< Buffers containing the contents of each file. Caller must call MTY_Free when done.
+	size_t *size;      ///< The sizes of each `buf` element. Caller must call MTY_Free when done
 } MTY_DropEvent;
 
 /// @brief Controller axis.

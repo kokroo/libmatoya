@@ -711,7 +711,6 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 	bool double_click = false;
 	bool creturn = false;
 	bool defreturn = false;
-	char drop_name[MTY_PATH_MAX];
 
 	switch (msg) {
 		case WM_CLOSE:
@@ -937,22 +936,83 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			}
 			break;
 		}
-		case WM_DROPFILES:
-			wchar_t namew[MTY_PATH_MAX];
+		case WM_DROPFILES: {
+			const HDROP hdrop = (HDROP) wparam;
 
-			if (DragQueryFile((HDROP) wparam, 0, namew, MTY_PATH_MAX)) {
-				SetForegroundWindow(hwnd);
+			size_t count = DragQueryFile(hdrop, 0xFFFFFFFF, NULL, 0);
+			if (count == 0)
+				goto except;
 
-				MTY_WideToMulti(namew, drop_name, MTY_PATH_MAX);
-				evt.drop.name = drop_name;
-				evt.drop.buf = MTY_ReadFile(drop_name, &evt.drop.size);
+			SetForegroundWindow(hwnd);
 
-				if (evt.drop.buf)
-					evt.type = MTY_EVENT_DROP;
+			MTY_DropEvent drop = { 0 };
+
+			drop.name = MTY_Alloc(count, sizeof(char *));
+			drop.buf = MTY_Alloc(count, sizeof(void *));
+			drop.size = MTY_Alloc(count, sizeof(size_t));
+
+			size_t success = 0;
+			size_t *success_idx = MTY_Alloc(count, sizeof(size_t));
+
+			for (size_t i = 0; i < count; i++) {
+				wchar_t namew[MTY_PATH_MAX] = {0};
+
+				if (DragQueryFile(hdrop, (UINT) i, namew, MTY_PATH_MAX)) {
+					drop.name[i] = MTY_Alloc(1, MTY_PATH_MAX);
+
+					bool error = false;
+
+					error = !MTY_WideToMulti(namew, drop.name[i], MTY_PATH_MAX);
+					if (error) goto except2;
+
+					drop.buf[i] = MTY_ReadFile(drop.name[i], &drop.size[i]);
+
+					error = drop.buf[i] == NULL;
+					if (error) goto except2;
+
+					success_idx[success++] = i;
+
+					except2:
+
+					if (error)
+						free(drop.name[i]);
+				}
 			}
+
+			if (success > 0) {
+				evt.type = MTY_EVENT_DROP;
+				evt.drop.count = success;
+
+				evt.drop.name = MTY_Alloc(success, sizeof(char *));
+				evt.drop.buf = MTY_Alloc(success, sizeof(void *));
+				evt.drop.size = MTY_Alloc(success, sizeof(size_t));
+
+				for (size_t i = 0; i < success; i++) {
+					const size_t j = success_idx[i];
+
+					evt.drop.name[i] = MTY_Alloc(MTY_PATH_MAX, 1);
+					snprintf(evt.drop.name[i], MTY_PATH_MAX, "%s", drop.name[j]);
+
+					evt.drop.buf[i] = MTY_Alloc(1, drop.size[j]);
+					memcpy(evt.drop.buf[i], drop.buf[j], drop.size[j]);
+
+					evt.drop.size[i] = drop.size[j];
+
+					free(drop.name[j]);
+					free(drop.buf[j]);
+				}
+			}
+
+			free(success_idx);
+			free(drop.size);
+			free(drop.buf);
+			free(drop.name);
+
+			except:
 
 			DragFinish((HDROP) wparam);
 			break;
+		}
 		case WM_INPUT:
 			UINT rsize = APP_RI_MAX;
 			UINT e = GetRawInputData((HRAWINPUT) lparam, RID_INPUT, ctx->ri, &rsize, sizeof(RAWINPUTHEADER));
