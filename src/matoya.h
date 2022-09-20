@@ -1674,6 +1674,15 @@ MTY_ReadFile(const char *path, size_t *size);
 MTY_EXPORT bool
 MTY_WriteFile(const char *path, const void *buf, size_t size);
 
+/// @brief Append a buffer to a file.
+/// @details This function appends to the file in binary mode.
+/// @param path Path to the file.
+/// @param buf Input buffer to append.
+/// @param size Size in bytes of `buf`.
+/// @returns Returns true on success, false on failure. Call MTY_GetLog for details.
+MTY_EXPORT bool
+MTY_AppendToFile(const char *path, const void *buf, size_t size);
+
 /// @brief Write formatted text to a file.
 /// @details This function writes to the file in text mode.\n\n
 ///   Warning: Be careful with your format string, if it is incorrect this

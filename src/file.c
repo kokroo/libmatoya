@@ -57,6 +57,23 @@ bool MTY_WriteFile(const char *path, const void *buf, size_t size)
 	return r;
 }
 
+bool MTY_AppendToFile(const char *path, const void *buf, size_t size)
+{
+	FILE *f = fsutil_open(path, "ab");
+	if (!f)
+		return false;
+
+	bool r = true;
+	if (fwrite(buf, 1, size, f) != size) {
+		MTY_Log("'fwrite' failed with ferror %d", ferror(f));
+		r = false;
+	}
+
+	fclose(f);
+
+	return r;
+}
+
 static bool file_vfprintf(const char *path, const char *mode, const char *fmt, va_list args)
 {
 	FILE *f = fsutil_open(path, mode);
