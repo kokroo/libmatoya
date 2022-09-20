@@ -143,7 +143,10 @@ const char *MTY_GetFileName(const char *path, bool extension)
 
 const char *MTY_GetFileExtension(const char *path)
 {
-	const char *ext = strrchr(path, '.');
+	const char *name = strrchr(path, FSUTIL_DELIM);
+	name = name ? name + 1 : path;
+
+	const char *ext = strrchr(name, '.');
 
 	if (ext)
 		return mty_tlocal_strcpy(ext + 1);
