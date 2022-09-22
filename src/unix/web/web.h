@@ -20,7 +20,7 @@ typedef void (*WEB_BUTTON)(MTY_App *ctx, bool pressed, int32_t button, int32_t x
 typedef void (*WEB_SCROLL)(MTY_App *ctx, int32_t x, int32_t y);
 typedef bool (*WEB_KEY)(MTY_App *ctx, bool pressed, MTY_Key key, const char *text, uint32_t mods);
 typedef void (*WEB_FOCUS)(MTY_App *ctx, bool focus);
-typedef void (*WEB_DROP)(MTY_App *ctx, const char *name, const void *data, size_t size);
+typedef void (*WEB_DROP)(MTY_App *ctx, const char **name, size_t count);
 typedef void (*WEB_RESIZE)(MTY_App *ctx);
 
 bool web_has_focus(void);

@@ -178,15 +178,18 @@ static void window_focus(MTY_App *ctx, bool focus)
 	ctx->event_func(&evt, ctx->opaque);
 }
 
-static void window_drop(MTY_App *ctx, const char *name, const void *data, size_t size)
+static void window_drop(MTY_App *ctx, const char **name, size_t count)
 {
 	MTY_Event evt = {0};
 	evt.type = MTY_EVENT_DROP;
+	evt.drop.count = count;
 	evt.drop.name = name;
-	evt.drop.buf = data;
-	evt.drop.size = size;
 
 	ctx->event_func(&evt, ctx->opaque);
+
+	for (size_t i = 0; i < count; i++)
+		free(evt.drop.name[i]);
+	free(evt.drop.name);
 }
 
 static void window_controller(MTY_App *ctx, uint32_t id, uint32_t state, uint32_t buttons,

@@ -1104,24 +1104,13 @@ const MTY_WEB_API = {
 			if (!ev.dataTransfer.items)
 				return;
 
-			for (let x = 0; x < ev.dataTransfer.items.length; x++) {
-				if (ev.dataTransfer.items[x].kind == 'file') {
-					let file = ev.dataTransfer.items[x].getAsFile();
+			ev.dataTransfer.items
+				.filter(item => item.kind === 'file')
+				.map(item => item.getAsFile().name)
+				.filter(x => x)
+				.map(name => MTY_StrToC(name, MTY.cbuf, 1024))
+				.forEach(name_cstr => MTY_CFunc(drop)(app, name_cstr, 1));
 
-					const reader = new FileReader();
-					reader.addEventListener('loadend', (fev) => {
-						if (reader.readyState == 2) {
-							let buf = new Uint8Array(reader.result);
-							let cmem = MTY_Alloc(buf.length);
-							MTY_Memcpy(cmem, buf);
-							MTY_CFunc(drop)(app, MTY_StrToC(file.name, MTY.cbuf, 1024), cmem, buf.length);
-							MTY_Free(cmem);
-						}
-					});
-					reader.readAsArrayBuffer(file);
-					break;
-				}
-			}
 		});
 	},
 	web_raf: function (app, func, controller, move, opaque) {

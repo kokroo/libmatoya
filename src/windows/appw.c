@@ -945,13 +945,12 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 
 			SetForegroundWindow(hwnd);
 
-			MTY_DropEvent drop = { 0 };
+			MTY_DropEvent drop = {
+				.count = count,
+				.name = MTY_Alloc(count, sizeof(char *)),
+			};
 
-			drop.name = MTY_Alloc(count, sizeof(char *));
-			drop.buf = MTY_Alloc(count, sizeof(void *));
-			drop.size = MTY_Alloc(count, sizeof(size_t));
-
-			size_t success = 0;
+			size_t success_count = 0;
 			size_t *success_idx = MTY_Alloc(count, sizeof(size_t));
 
 			for (size_t i = 0; i < count; i++) {
@@ -960,53 +959,31 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 				if (DragQueryFile(hdrop, (UINT) i, namew, MTY_PATH_MAX)) {
 					drop.name[i] = MTY_Alloc(1, MTY_PATH_MAX);
 
-					bool error = false;
-
-					error = !MTY_WideToMulti(namew, drop.name[i], MTY_PATH_MAX);
-					if (error) goto except2;
-
-					drop.buf[i] = MTY_ReadFile(drop.name[i], &drop.size[i]);
-
-					error = drop.buf[i] == NULL;
-					if (error) goto except2;
-
-					success_idx[success++] = i;
-
-					except2:
-
-					if (error)
-						free(drop.name[i]);
+					if (MTY_WideToMulti(namew, drop.name[i], MTY_PATH_MAX))
+						success_idx[success_count++] = i;
+					else
+						MTY_Free(drop.name[i]);
 				}
 			}
 
-			if (success > 0) {
+			if (success_count > 0) {
 				evt.type = MTY_EVENT_DROP;
-				evt.drop.count = success;
 
-				evt.drop.name = MTY_Alloc(success, sizeof(char *));
-				evt.drop.buf = MTY_Alloc(success, sizeof(void *));
-				evt.drop.size = MTY_Alloc(success, sizeof(size_t));
+				evt.drop.count = success_count;
+				evt.drop.name = MTY_Alloc(success_count, sizeof(char *));
 
-				for (size_t i = 0; i < success; i++) {
+				for (size_t i = 0; i < success_count; i++) {
 					const size_t j = success_idx[i];
 
-					evt.drop.name[i] = MTY_Alloc(MTY_PATH_MAX, 1);
+					evt.drop.name[i] = MTY_Alloc(1, MTY_PATH_MAX);
 					snprintf(evt.drop.name[i], MTY_PATH_MAX, "%s", drop.name[j]);
 
-					evt.drop.buf[i] = MTY_Alloc(1, drop.size[j]);
-					memcpy(evt.drop.buf[i], drop.buf[j], drop.size[j]);
-
-					evt.drop.size[i] = drop.size[j];
-
-					free(drop.name[j]);
-					free(drop.buf[j]);
+					MTY_Free(drop.name[j]);
 				}
 			}
 
-			free(success_idx);
-			free(drop.size);
-			free(drop.buf);
-			free(drop.name);
+			MTY_Free(success_idx);
+			MTY_Free(drop.name);
 
 			except:
 
@@ -1130,9 +1107,6 @@ static LRESULT app_custom_hwnd_proc(struct window *ctx, HWND hwnd, UINT msg, WPA
 			evt.button.pressed = true;
 			app->event_func(&evt, app->opaque);
 		}
-
-		if (evt.type == MTY_EVENT_DROP)
-			MTY_Free((void *) evt.drop.buf);
 
 		if (!defreturn)
 			return creturn ? r : 0;
