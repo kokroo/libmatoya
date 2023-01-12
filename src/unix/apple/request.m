@@ -9,7 +9,8 @@
 #include <Foundation/NSURLRequest.h>
 #include <Foundation/Foundation.h>
 
-#include "net/http.h"
+#include "net/http-parse.h"
+#include "net/http-proxy.h"
 
 #define MTY_USER_AGENT @"libmatoya/v" MTY_VERSION_STRING
 
@@ -39,6 +40,9 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
 	NSMutableURLRequest *req = [NSMutableURLRequest new];
 
+	// Don't cache
+	[req setCachePolicy:NSURLRequestReloadIgnoringLocalCacheData];
+
 	// Timeout
 	[req setTimeoutInterval:timeout / 1000.0];
 
@@ -49,13 +53,10 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 	const char *scheme = secure ? "https" : "http";
 	port = port > 0 ? port : secure ? 443 : 80;
 
-	const char *url = NULL;
-	if ((secure && port == 443) || (!secure && port == 80)) {
-		url = MTY_SprintfDL("%s://%s%s", scheme, host, path);
+	bool std_port = (secure && port == 443) || (!secure && port == 80);
 
-	} else {
-		url = MTY_SprintfDL("%s://%s:%u%s", scheme, host, port, path);
-	}
+	const char *url =  std_port ? MTY_SprintfDL("%s://%s%s", scheme, host, path) :
+		MTY_SprintfDL("%s://%s:%u%s", scheme, host, port, path);
 
 	[req setURL:[NSURL URLWithString:[NSString stringWithUTF8String:url]]];
 
@@ -107,7 +108,7 @@ bool MTY_HttpRequest(const char *host, uint16_t port, bool secure, const char *m
 			*responseSize = [data length];
 
 			if (*responseSize > 0) {
-				*response = MTY_Alloc(*responseSize, 1);
+				*response = MTY_Alloc(*responseSize + 1, 1);
 				[data getBytes:*response length:*responseSize];
 			}
 
